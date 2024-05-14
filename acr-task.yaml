@@ -1,0 +1,23 @@
+version: v1.0
+steps:
+  - id: build-test-base-image
+    build: >
+      --build-arg REGISTRY_FROM_URL={{.Values.REGISTRY_FROM_URL}} 
+      -f ./Dockerfile
+      -t {{.Run.Registry}}/node-import:test
+      .
+  - id: validate-base-image
+    # solo continua si exit code de test es distinto de cero
+    when: ['build-test-base-image']
+    cmd: "{{.Run.Registry}}/node-import:test"
+  - id: retag-base-image
+    when: ['validate-base-image']
+    cmd: docker tag {{.Values.REGISTRY_FROM_URL}}node:15-alpine {{.Run.Registry}}/node:15-alpine
+  - id: retag-base-image-unique-tag
+    when: ['retag-base-image']
+    cmd: docker tag {{.Values.REGISTRY_FROM_URL}}node:15-alpine {{.Run.Registry}}/node:15-alpine-{{.Run.ID}}
+  - id: push-base-image
+    when: ['retag-base-image', 'retag-base-image-unique-tag']
+    push: 
+    - "{{.Run.Registry}}/node:15-alpine"
+    - "{{.Run.Registry}}/node:15-alpine-{{.Run.ID}}"
